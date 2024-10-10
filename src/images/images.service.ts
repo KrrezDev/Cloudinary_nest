@@ -5,6 +5,7 @@ import { Image } from './entities/image.entity';
 import { ImageDocument } from './schemas/image.schema';
 import { CreateImageDto } from './dto/create-image.dto';
 import { UpdateImageDto } from './dto/update-image.dto';
+import cloudinary from '../config/cloudinary.config';
 
 @Injectable()
 export class ImagesService {
@@ -28,8 +29,29 @@ export class ImagesService {
     });
   }
 
-  async create(createImageDto: CreateImageDto): Promise<Image> {
-    const createdImage = new this.imageModel(createImageDto);
+  async create(createImageDto: CreateImageDto, file: Express.Multer.File): Promise<Image> {
+    const { userId } = createImageDto;
+
+    const result = await cloudinary.uploader.upload(file.buffer.toString('base64'), {
+      resource_type: 'auto',
+      folder: 'your-folder-name',
+      transformation: [
+        { effect: 'ai_background_removal' },
+        { overlay: 'tenebrous_background', gravity: 'center', width: 'auto', height: 'auto', crop: 'fill' }
+      ],
+    });
+
+    const createdImage = new this.imageModel({
+      userId,
+      cloudinaryPublicId: result.public_id,
+      cloudinaryUrl: result.secure_url,
+      originalFilename: file.originalname,
+      fileSize: file.size,
+      fileType: file.mimetype,
+      width: result.width,
+      height: result.height,
+    });
+
     const doc = await createdImage.save();
     return this.toEntity(doc);
   }
