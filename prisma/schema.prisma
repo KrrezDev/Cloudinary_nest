@@ -8,10 +8,13 @@ generator client {
   provider = "prisma-client-js"
 }
 
+
 datasource db {
   provider = "mongodb"
   url      = env("DATABASE_URL")
 }
+
+
 
 model User {
   id String  @id @default(auto()) @map("_id") @db.ObjectId
@@ -21,4 +24,21 @@ model User {
   email String @unique
   password String
   created_at DateTime @default(now())
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+model Image {
+  id                String @id @default(auto()) @map("_id") @db.ObjectId
+  cloudinaryPublicId String
+  cloudinaryUrl     String
+  originalFilename  String
+  fileSize          Int
+  fileType          String
+  width             Int
+  height            Int
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
 }
