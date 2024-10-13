@@ -1,13 +1,11 @@
 import { Module } from '@nestjs/common';
-import { MongooseModule } from '@nestjs/mongoose';
 import { ImagesService } from './images.service';
 import { ImagesController } from './images.controller';
-import { Image, ImageSchema } from './schemas/image.schema';
+import { PrismaModule } from '../prisma/prisma.module';
+
 @Module({
-  imports: [
-    MongooseModule.forFeature([{ name: Image.name, schema: ImageSchema }]),
-  ],
-  controllers: [ImagesController],
+  imports: [PrismaModule],
   providers: [ImagesService],
+  controllers: [ImagesController],
 })
 export class ImagesModule {}

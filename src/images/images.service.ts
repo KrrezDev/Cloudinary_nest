@@ -1,22 +1,17 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
-import { InjectModel } from '@nestjs/mongoose';
-import { Model } from 'mongoose';
+import { PrismaService } from '../prisma/prisma.service';
 import { Image } from './entities/image.entity';
-import { ImageDocument } from './schemas/image.schema';
 import { CreateImageDto } from './dto/create-image.dto';
 import { UpdateImageDto } from './dto/update-image.dto';
 import cloudinary from '../config/cloudinary.config';
 
 @Injectable()
 export class ImagesService {
-  constructor(
-    @InjectModel('Image') private imageModel: Model<ImageDocument>,
-  ) {}
+  constructor(private prisma: PrismaService) {}
 
-  private toEntity(doc: ImageDocument): Image {
+  private toEntity(doc: any): Image {
     return new Image({
-      id: doc._id.toString(),
-      userId: doc.userId,
+      id: doc.id.toString(),
       cloudinaryPublicId: doc.cloudinaryPublicId,
       cloudinaryUrl: doc.cloudinaryUrl,
       originalFilename: doc.originalFilename,
@@ -30,8 +25,6 @@ export class ImagesService {
   }
 
   async create(createImageDto: CreateImageDto, file: Express.Multer.File): Promise<Image> {
-    const { userId } = createImageDto;
-
     const result = await cloudinary.uploader.upload(file.buffer.toString('base64'), {
       resource_type: 'auto',
       folder: 'your-folder-name',
@@ -41,28 +34,30 @@ export class ImagesService {
       ],
     });
 
-    const createdImage = new this.imageModel({
-      userId,
-      cloudinaryPublicId: result.public_id,
-      cloudinaryUrl: result.secure_url,
-      originalFilename: file.originalname,
-      fileSize: file.size,
-      fileType: file.mimetype,
-      width: result.width,
-      height: result.height,
+    const createdImage = await this.prisma.image.create({
+      data: {
+        cloudinaryPublicId: result.public_id,
+        cloudinaryUrl: result.secure_url,
+        originalFilename: file.originalname,
+        fileSize: file.size,
+        fileType: file.mimetype,
+        width: result.width,
+        height: result.height,
+      },
     });
 
-    const doc = await createdImage.save();
-    return this.toEntity(doc);
+    return this.toEntity(createdImage);
   }
 
   async findAll(): Promise<Image[]> {
-    const docs = await this.imageModel.find().exec();
+    const docs = await this.prisma.image.findMany();
     return docs.map(doc => this.toEntity(doc));
   }
 
   async findOne(id: string): Promise<Image> {
-    const doc = await this.imageModel.findById(id).exec();
+    const doc = await this.prisma.image.findUnique({
+      where: { id: id },
+    });
     if (!doc) {
       throw new NotFoundException(`Image with ID ${id} not found`);
     }
@@ -70,24 +65,27 @@ export class ImagesService {
   }
 
   async update(id: string, updateImageDto: UpdateImageDto): Promise<Image> {
-    const updatedDoc = await this.imageModel
-      .findByIdAndUpdate(id, updateImageDto, { new: true })
-      .exec();
-    
+    const updatedDoc = await this.prisma.image.update({
+      where: { id: id },
+      data: updateImageDto,
+    });
+
     if (!updatedDoc) {
       throw new NotFoundException(`Image with ID ${id} not found`);
     }
-    
+
     return this.toEntity(updatedDoc);
   }
 
   async remove(id: string): Promise<Image> {
-    const deletedDoc = await this.imageModel.findByIdAndDelete(id).exec();
-    
+    const deletedDoc = await this.prisma.image.delete({
+      where: { id: id },
+    });
+
     if (!deletedDoc) {
       throw new NotFoundException(`Image with ID ${id} not found`);
     }
-    
+
     return this.toEntity(deletedDoc);
   }
 }
